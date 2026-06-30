@@ -34,36 +34,46 @@
 
 ---
 
+```mermaid
 graph TD
-    A[Target Input CLI/File] --> B(Input Parser & Scope Extraction)
-    B --> C{Execution Router}
+    A["Target Input (CLI/File)"] --> B("Input Parser & Scope Extraction")
+    B --> C{"Execution Router"}
     
-    C -->|Passive Mode| D[Passive Intelligence Module]
-    C -->|Crawl Mode| E[Active BFS Crawler]
-    C -->|JS Mode| F[In-Memory JS Analysis]
+    subgraph Passive ["Passive Intelligence"]
+        D["Passive Intelligence Module"] --> D1["Wayback Machine"]
+        D --> D2["AlienVault OTX"]
+        D --> D3["URLScan"]
+    end
+    
+    subgraph Active ["Active Crawling & Analysis"]
+        E["Active BFS Crawler"] --> E1["HTML DOM Parser"]
+        E --> E2["Known Files (robots.txt / sitemap.xml)"]
+        E --> F["In-Memory JS Analysis"]
+    end
+
+    C -->|Passive Mode| D
+    C -->|Crawl Mode| E
+    C -->|JS Mode| F
     C -->|All Mode| D & E
     
-    D --> D1(Wayback Machine)
-    D --> D2(AlienVault OTX)
-    D --> D3(URLScan)
-    
-    E --> E1(HTML DOM Parser)
-    E --> E2(Known Files: robots, sitemap)
-    E --> F
-    
-    D1 & D2 & D3 --> G((Raw URL Stream Channel))
+    D1 & D2 & D3 --> G(("Raw URL Stream Channel"))
     E1 & E2 --> G
     F --> G
     
-    G --> H[Strict Scope Validator]
-    H --> I[Parameter Mining & Normalization]
-    I --> J[Key-Signature Deduplication Engine]
-    J --> K[Regex Filter Stream]
+    subgraph Processing ["Deduplication & Filtering Pipeline"]
+        G --> H["Strict Scope Validator"]
+        H --> I["Parameter Mining & Normalization"]
+        I --> J["Key-Signature Deduplication Engine"]
+        J --> K["Regex Filter Stream"]
+    end
     
-    K --> L[(Clean Output Handler)]
-    L --> M1(Colorized Console)
-    L --> M2(JSON Export)
-    L --> M3(Raw Txt File)
+    subgraph Output ["Output Delivery"]
+        K --> L[("Clean Output Handler")]
+        L --> M1["Colorized Console"]
+        L --> M2["JSON Export"]
+        L --> M3["Raw Txt File"]
+    end
+```
 
 ---
 
