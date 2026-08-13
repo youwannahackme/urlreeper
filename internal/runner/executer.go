@@ -35,9 +35,9 @@ func (r *Runner) ExecuteCrawling() error {
 			parsedInput, err := urlutil.Parse(input)
 			var rootHostname string
 			if err == nil {
-				rootHostname = parsedInput.Host
+				rootHostname = strings.TrimPrefix(parsedInput.Host, "www.")
 			} else {
-				rootHostname = input
+				rootHostname = strings.TrimPrefix(input, "www.")
 			}
 			for _, pURL := range passiveURLs {
 				if inScope, _ := r.crawlerOptions.ValidateScope(pURL, rootHostname); inScope {

@@ -100,7 +100,11 @@ func (c *Crawler) makeRequest(s *common.CrawlSession, request *navigation.Reques
 	// Skip unique content filtering if disabled
 	if !c.Options.Options.DisableUniqueFilter {
 		if !c.Options.UniqueFilter.UniqueContent(data) {
-			return &navigation.Response{}, nil
+			response.StatusCode = resp.StatusCode
+			response.Headers = utils.FlattenHeaders(resp.Header)
+			response.Resp = resp
+			response.ContentLength = int64(len(data))
+			return response, nil
 		}
 	}
 

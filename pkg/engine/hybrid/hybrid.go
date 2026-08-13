@@ -299,7 +299,7 @@ func buildChromeLauncher(options *types.CrawlerOptions, dataStore string) (*laun
 		chromeLauncher = chromeLauncher.Headless(true)
 	}
 
-	if options.Options.HeadlessNoSandbox {
+	if options.Options.HeadlessNoSandbox || os.Geteuid() == 0 {
 		chromeLauncher.Set("no-sandbox", "true")
 	}
 
