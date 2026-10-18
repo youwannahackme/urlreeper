@@ -23,24 +23,24 @@ URLReeper features a modular pipeline that coordinates active HTTP fetchers, pas
 
 ```mermaid
 graph TD
-    Input[Target Input / List] --> Orchestrator{URLReeper Orchestrator}
-    
-    Orchestrator -->|Option: -passive| Passive[Passive Gathering Engine]
-    Orchestrator -->|Option: Default| Standard[Standard Active Engine]
-    Orchestrator -->|Option: -hl / -hh| Headless[Headless Browser Engine]
-    
-    Passive -->|Wayback CDX & OTX APIs| PassiveResults[Historical URL Seeds]
-    Standard -->|Fast Go HTTP Client| StandardResults[Discovered Static Links]
-    Headless -->|Chromium CDP / Rod| HeadlessResults[Dynamic DOM, Forms & XHR Endpoints]
-    
-    PassiveResults --> DeDup{Deduplicator & Scope Validator}
+    Input["Target Input / List"] --> Orchestrator{"URLReeper Orchestrator"}
+
+    Orchestrator -->|"Option: -passive"| Passive["Passive Gathering Engine"]
+    Orchestrator -->|"Option: Default"| Standard["Standard Active Engine"]
+    Orchestrator -->|"Option: -hl / -hh"| Headless["Headless Browser Engine"]
+
+    Passive -->|"Wayback CDX & OTX APIs"| PassiveResults["Historical URL Seeds"]
+    Standard -->|"Fast Go HTTP Client"| StandardResults["Discovered Static Links"]
+    Headless -->|"Chromium CDP / Rod"| HeadlessResults["Dynamic DOM, Forms & XHR Endpoints"]
+
+    PassiveResults --> DeDup{"Deduplicator & Scope Validator"}
     StandardResults --> DeDup
     HeadlessResults --> DeDup
-    
-    DeDup -->|Validated Scope| CrawlQueue[Crawl Queue & Recursion]
-    
-    CrawlQueue --> OutputWriter{Output Pipeline}
-    OutputWriter -->|Format: Plain / JSONL| Output[Stdout / File / Field Directory]
+
+    DeDup -->|"Validated Scope"| CrawlQueue["Crawl Queue & Recursion"]
+
+    CrawlQueue --> OutputWriter{"Output Pipeline"}
+    OutputWriter -->|"Format: Plain / JSONL"| Output["Stdout / File / Field Directory"]
 ```
 
 ### 1. Passive Discovery Engine
