@@ -255,8 +255,11 @@ func FormFillSuggestions(formFields []interface{}) mapsutil.OrderedMap[string, s
 
 // ConvertGoquerySelectionToFormInput converts goquery selection to form input
 func ConvertGoquerySelectionToFormInput(item *goquery.Selection) FormInput {
-	attrs := item.Nodes[0].Attr
 	input := FormInput{Attributes: mapsutil.NewOrderedMap[string, string]()}
+	if item == nil || len(item.Nodes) == 0 {
+		return input
+	}
+	attrs := item.Nodes[0].Attr
 
 	for _, attribute := range attrs {
 		switch attribute.Key {
@@ -276,8 +279,11 @@ func ConvertGoquerySelectionToFormInput(item *goquery.Selection) FormInput {
 // ConvertGoquerySelectionToSelectOption converts a goquery.Selection object to a SelectOption object.
 // It extracts the attributes from the goquery.Selection object and populates a SelectOption object with the extracted values.
 func ConvertGoquerySelectionToSelectOption(item *goquery.Selection) SelectOption {
-	attrs := item.Nodes[0].Attr
 	input := SelectOption{Attributes: mapsutil.NewOrderedMap[string, string]()}
+	if item == nil || len(item.Nodes) == 0 {
+		return input
+	}
+	attrs := item.Nodes[0].Attr
 	for _, attribute := range attrs {
 		switch attribute.Key {
 		case "value":
@@ -289,6 +295,9 @@ func ConvertGoquerySelectionToSelectOption(item *goquery.Selection) SelectOption
 			input.Attributes.Set(attribute.Key, attribute.Val)
 		}
 	}
+	if input.Value == "" {
+		input.Value = strings.TrimSpace(item.Text())
+	}
 	return input
 }
 
@@ -296,8 +305,11 @@ func ConvertGoquerySelectionToSelectOption(item *goquery.Selection) SelectOption
 // It extracts the attributes and form options from the goquery.Selection and populates them in the FormSelect object.
 // The converted FormSelect object is then returned.
 func ConvertGoquerySelectionToFormSelect(item *goquery.Selection) FormSelect {
+	input := FormSelect{Attributes: mapsutil.NewOrderedMap[string, string](), SelectOptions: []SelectOption{}}
+	if item == nil || len(item.Nodes) == 0 {
+		return input
+	}
 	attrs := item.Nodes[0].Attr
-	input := FormSelect{Attributes: mapsutil.NewOrderedMap[string, string]()}
 	for _, attribute := range attrs {
 		switch attribute.Key {
 		case "name":
@@ -307,7 +319,6 @@ func ConvertGoquerySelectionToFormSelect(item *goquery.Selection) FormSelect {
 		}
 	}
 
-	input.SelectOptions = []SelectOption{}
 	item.Find("option").Each(func(_ int, option *goquery.Selection) {
 		input.SelectOptions = append(input.SelectOptions, ConvertGoquerySelectionToSelectOption(option))
 	})
@@ -318,8 +329,11 @@ func ConvertGoquerySelectionToFormSelect(item *goquery.Selection) FormSelect {
 // It extracts the attributes from the first node of the selection and populates a FormTextArea object with the extracted data.
 // The "name" attribute is assigned to the Name field of the FormTextArea, while other attributes are added to the Attributes map.
 func ConvertGoquerySelectionToFormTextArea(item *goquery.Selection) FormTextArea {
-	attrs := item.Nodes[0].Attr
 	input := FormTextArea{Attributes: mapsutil.NewOrderedMap[string, string]()}
+	if item == nil || len(item.Nodes) == 0 {
+		return input
+	}
+	attrs := item.Nodes[0].Attr
 	for _, attribute := range attrs {
 		switch attribute.Key {
 		case "name":

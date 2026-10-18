@@ -95,7 +95,7 @@ func updateIndex(storeResponseFolder string, result *Result) error {
 	builder.WriteRune('\n')
 
 	if _, writeErr := index.Write(builder.Bytes()); writeErr != nil {
-		return errkit.Wrap(err, "output: could not update index")
+		return errkit.Wrap(writeErr, "output: could not update index")
 	}
 
 	return nil

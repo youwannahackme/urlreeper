@@ -122,7 +122,11 @@ func New(options Options) (Writer, error) {
 		writer.storeFields = append(writer.storeFields, strings.Split(options.StoreFields, ",")...)
 	}
 	if options.OutputFile != "" {
-		output, err := newFileOutputWriter(options.OutputFile)
+		targetFile := options.OutputFile
+		if options.NoClobber && fileutil.FileExists(targetFile) {
+			targetFile = createFileNameNoClobber(targetFile)
+		}
+		output, err := newFileOutputWriter(targetFile)
 		if err != nil {
 			return nil, errkit.Wrap(err, "output: could not create output file")
 		}
@@ -173,6 +177,9 @@ func New(options Options) (Writer, error) {
 func (w *StandardWriter) Write(result *Result) error {
 	if result == nil {
 		return errors.New("result is nil")
+	}
+	if result.Request == nil {
+		return errors.New("result.Request is nil")
 	}
 
 	if len(w.storeFields) > 0 {
@@ -302,6 +309,38 @@ func (w *StandardWriter) Close() error {
 		}
 	}
 	return nil
+}
+
+func createFileNameNoClobber(file string) string {
+	if !fileutil.FileExists(file) {
+		return file
+	}
+
+	parentDir, fileName := filepath.Dir(file), filepath.Base(file)
+	ext := filepath.Ext(fileName)
+	baseName := strings.TrimSuffix(fileName, ext)
+
+	entries, err := os.ReadDir(parentDir)
+	if err != nil {
+		return file
+	}
+
+	highestNum := 0
+	regex := regexp.MustCompile(fmt.Sprintf("^%s(\\d+)%s$", regexp.QuoteMeta(baseName), regexp.QuoteMeta(ext)))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			name := entry.Name()
+			matches := regex.FindStringSubmatch(name)
+			if matches != nil {
+				if num, err := strconv.Atoi(matches[1]); err == nil && num > highestNum {
+					highestNum = num
+				}
+			}
+		}
+	}
+
+	newFileName := fmt.Sprintf("%s%d%s", baseName, highestNum+1, ext)
+	return filepath.Join(parentDir, newFileName)
 }
 
 func createDirNameNoClobber(dir string) string {

@@ -61,6 +61,9 @@ func validateFieldNames(names string) error {
 // storeFields stores fields for a result into individual files
 // based on name.
 func storeFields(output *Result, storeFields []string) {
+	if output == nil || output.Request == nil || output.Request.URL == "" {
+		return
+	}
 	parsed, err := urlutil.Parse(output.Request.URL)
 	if err != nil {
 		gologger.Warning().Msgf("storeFields: failed to parse url %v got %v", output.Request.URL, err)
@@ -175,16 +178,18 @@ func formatField(output *Result, fields string) []fieldOutput {
 			}
 		case "udir":
 			if parsed.Path != "" && parsed.Path != "/" {
-				if strings.Contains(parsed.Path[1:], "/") {
-					directory := parsed.Path[:strings.LastIndex(parsed.Path[1:], "/")+2]
+				idx := strings.LastIndex(parsed.Path, "/")
+				if idx >= 0 {
+					directory := parsed.Path[:idx+1]
 					rootURL := fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host)
 					svalue = append(svalue, fieldOutput{field: "udir", value: fmt.Sprintf("%s%s", rootURL, directory)})
 				}
 			}
 		case "dir":
 			if parsed.Path != "" && parsed.Path != "/" {
-				if strings.Contains(parsed.Path[1:], "/") {
-					directory := parsed.Path[:strings.LastIndex(parsed.Path[1:], "/")+2]
+				idx := strings.LastIndex(parsed.Path, "/")
+				if idx >= 0 {
+					directory := parsed.Path[:idx+1]
 					svalue = append(svalue, fieldOutput{field: "dir", value: directory})
 				}
 			}
@@ -223,12 +228,18 @@ func getValueForField(output *Result, parsed *url.URL, hostname, rdn, rurl, fiel
 			return basePath
 		}
 	case "dir":
-		if parsed.Path != "" && parsed.Path != "/" && strings.Contains(parsed.Path[1:], "/") {
-			return parsed.Path[:strings.LastIndex(parsed.Path[1:], "/")+2]
+		if parsed.Path != "" && parsed.Path != "/" {
+			idx := strings.LastIndex(parsed.Path, "/")
+			if idx >= 0 {
+				return parsed.Path[:idx+1]
+			}
 		}
 	case "udir":
-		if parsed.Path != "" && parsed.Path != "/" && strings.Contains(parsed.Path[1:], "/") {
-			return fmt.Sprintf("%s%s", rurl, parsed.Path[:strings.LastIndex(parsed.Path[1:], "/")+2])
+		if parsed.Path != "" && parsed.Path != "/" {
+			idx := strings.LastIndex(parsed.Path, "/")
+			if idx >= 0 {
+				return fmt.Sprintf("%s%s", rurl, parsed.Path[:idx+1])
+			}
 		}
 	case "qpath":
 		if len(parsed.Query()) > 0 {
