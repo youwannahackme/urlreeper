@@ -35,7 +35,7 @@ func (r *Runner) ExecuteCrawling() error {
 			parsedInput, err := urlutil.Parse(input)
 			var rootHostname string
 			if err == nil {
-				rootHostname = strings.TrimPrefix(parsedInput.Host, "www.")
+				rootHostname = strings.TrimPrefix(parsedInput.Hostname(), "www.")
 			} else {
 				rootHostname = strings.TrimPrefix(input, "www.")
 			}
@@ -93,7 +93,7 @@ func (r *Runner) ExecuteCrawling() error {
 // scheme less urls are skipped and are required for headless mode and other purposes
 // this method adds scheme if given input does not have any
 func addSchemeIfNotExists(inputURL string) string {
-	if strings.HasPrefix(inputURL, urlutil.HTTP) || strings.HasPrefix(inputURL, urlutil.HTTPS) {
+	if strings.HasPrefix(inputURL, "http://") || strings.HasPrefix(inputURL, "https://") {
 		return inputURL
 	}
 	parsed, err := urlutil.Parse(inputURL)

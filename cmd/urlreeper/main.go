@@ -31,6 +31,13 @@ var (
 )
 
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "-h" || arg == "-help" || arg == "--help" {
+			runner.ShowBanner()
+			break
+		}
+	}
+
 	flagSet, err := readFlags()
 	if err != nil {
 		gologger.Fatal().Msgf("Could not read flags: %s\n", err)
@@ -116,8 +123,10 @@ func main() {
 	// on successful execution:
 
 	// deduplicate the lines in each file in the store-field-dir
-	//use options.StoreFieldDir once https://github.com/youwannahackme/urlreeper/pull/877 is merged
 	storeFieldDir := "urlreeper_field"
+	if options.StoreFieldDir != "" {
+		storeFieldDir = options.StoreFieldDir
+	}
 	_ = folderutil.DedupeLinesInFiles(storeFieldDir)
 
 	// remove the resume file in case it exists

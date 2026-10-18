@@ -55,9 +55,12 @@ func validateOptions(options *types.Options) error {
 		gologger.Warning().Msgf("Using -cwu with existing browser session. The -headless flag is redundant.")
 		gologger.Info().Msgf("Connecting to Chrome at: %s", options.ChromeWSUrl)
 	} else if options.HeadlessHybrid && options.ChromeWSUrl != "" {
+		options.HeadlessHybrid = false
+		options.Headless = true
 		gologger.Warning().Msgf("Using -cwu forces pure headless engine. The -hh (hybrid) flag will be ignored.")
 		gologger.Info().Msgf("Connecting to Chrome at: %s (using pure headless engine)", options.ChromeWSUrl)
 	} else if options.ChromeWSUrl != "" {
+		options.Headless = true
 		gologger.Info().Msgf("Connecting to Chrome at: %s (using pure headless engine)", options.ChromeWSUrl)
 	}
 
@@ -72,7 +75,7 @@ func validateOptions(options *types.Options) error {
 	}
 
 	if (options.HeadlessOptionalArguments != nil || options.HeadlessNoSandbox || options.SystemChromePath != "") &&
-		!options.Headless && !options.HeadlessHybrid {
+		!options.Headless && !options.HeadlessHybrid && options.ChromeWSUrl == "" {
 		return errkit.New("headless (-hl) or hybrid (-hh) mode is required if -ho, -nos or -scp are set")
 	}
 	if options.SystemChromePath != "" {

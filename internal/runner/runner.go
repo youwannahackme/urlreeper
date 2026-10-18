@@ -56,7 +56,9 @@ func New(options *types.Options) (*Runner, error) {
 		options.URLs = mapsutil.GetKeys(runnerState.InFlightUrls.GetAll())
 	}
 	options.ConfigureOutput()
-	showBanner()
+	if !options.Silent {
+		showBanner()
+	}
 
 	if options.Version {
 		gologger.Info().Msgf("Current version: %s", version)

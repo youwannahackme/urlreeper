@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/projectdiscovery/goflags"
 	"github.com/youwannahackme/urlreeper/pkg/types"
 	fileutil "github.com/projectdiscovery/utils/file"
@@ -88,12 +89,16 @@ func DoHealthCheck(options *types.Options, flagSet *goflags.FlagSet) string {
 	}
 	_, _ = fmt.Fprintf(&test, "UDP IPv6 connectivity to scanme.sh:80 => %s\n", testResult)
 
-	// attempt to identify if chome is installed locally
-	if chromePath, err := exec.LookPath("chrome"); err == nil {
-		_, _ = fmt.Fprintf(&test, "Potential chrome binary path (linux/osx) => %s\n", chromePath)
-	}
-	if chromePath, err := exec.LookPath("chrome.exe"); err == nil {
-		_, _ = fmt.Fprintf(&test, "Potential chrome.exe binary path (windows) => %s\n", chromePath)
+	// attempt to identify if chrome is installed locally
+	if chromePath, hasChrome := launcher.LookPath(); hasChrome {
+		_, _ = fmt.Fprintf(&test, "Chrome binary path => %s\n", chromePath)
+	} else {
+		if chromePath, err := exec.LookPath("chrome"); err == nil {
+			_, _ = fmt.Fprintf(&test, "Potential chrome binary path (linux/osx) => %s\n", chromePath)
+		}
+		if chromePath, err := exec.LookPath("chrome.exe"); err == nil {
+			_, _ = fmt.Fprintf(&test, "Potential chrome.exe binary path (windows) => %s\n", chromePath)
+		}
 	}
 
 	return test.String()
