@@ -64,7 +64,7 @@ func BuildHttpClient(dialer *fastdialer.Dialer, options *types.Options, redirect
 			if !ok {
 				depth = 2
 			}
-			if redirectCallback != nil {
+			if redirectCallback != nil && req.Response != nil {
 				redirectCallback(req.Response, depth)
 			}
 			return nil

@@ -54,7 +54,6 @@ func NewResponseParser() *Parser {
 		{bodyParser, bodyVideoTagParser},
 		{bodyParser, bodyButtonFormactionTagParser},
 		{bodyParser, bodyBlockquoteCiteTagParser},
-		{bodyParser, bodyFrameSrcTagParser},
 		{bodyParser, bodyMapAreaPingTagParser},
 		{bodyParser, bodyBaseHrefTagParser},
 		{bodyParser, bodyImportImplementationTagParser},
@@ -76,6 +75,9 @@ func NewResponseParser() *Parser {
 
 // parseResponse runs the response parsers on the navigation response
 func (p *Parser) ParseResponse(resp *navigation.Response) (navigationRequests []*navigation.Request) {
+	if resp == nil {
+		return nil
+	}
 	for _, parser := range *p {
 		switch {
 		case parser.parserType == headerParser && resp.Resp != nil:
@@ -112,6 +114,18 @@ func isValidNavigationRequest(req *navigation.Request) bool {
 		!strings.HasPrefix(lc, "mailto:") &&
 		!strings.HasPrefix(lc, "javascript:") &&
 		!strings.HasPrefix(lc, "vbscript:")
+}
+
+func responseSourceURL(resp *navigation.Response) string {
+	if resp != nil {
+		if resp.Resp != nil && resp.Resp.Request != nil && resp.Resp.Request.URL != nil {
+			return resp.Resp.Request.URL.String()
+		}
+		if resp.Reader != nil && resp.Reader.Url != nil {
+			return resp.Reader.Url.String()
+		}
+	}
+	return ""
 }
 
 // -------------------------------------------------------------------------
@@ -409,19 +423,26 @@ func bodyTableTagParser(resp *navigation.Response) (navigationRequests []*naviga
 
 // bodyVideoTagParser parses video tag from response
 func bodyVideoTagParser(resp *navigation.Response) (navigationRequests []*navigation.Request) {
+	srcURL := responseSourceURL(resp)
 	resp.Reader.Find("video").Each(func(i int, item *goquery.Selection) {
 		src, ok := item.Attr("src")
 		if ok && src != "" {
-			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(src, resp.Resp.Request.URL.String(), "video", "src", resp))
+			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(src, srcURL, "video", "src", resp))
 		}
 		srcData, ok := item.Attr("poster")
 		if ok && srcData != "" {
-			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(srcData, resp.Resp.Request.URL.String(), "video", "poster", resp))
+			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(srcData, srcURL, "video", "poster", resp))
 		}
+		item.Find("source").Each(func(i int, s *goquery.Selection) {
+			srcValue, ok := s.Attr("src")
+			if ok && srcValue != "" {
+				navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(srcValue, srcURL, "video", "source", resp))
+			}
+		})
 		item.Find("track").Each(func(i int, s *goquery.Selection) {
 			srcValue, ok := s.Attr("src")
 			if ok && srcValue != "" {
-				navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(srcValue, resp.Resp.Request.URL.String(), "video", "track-src", resp))
+				navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(srcValue, srcURL, "video", "track-src", resp))
 			}
 		})
 	})
@@ -433,18 +454,7 @@ func bodyBlockquoteCiteTagParser(resp *navigation.Response) (navigationRequests 
 	resp.Reader.Find("blockquote[cite]").Each(func(i int, item *goquery.Selection) {
 		src, ok := item.Attr("cite")
 		if ok && src != "" {
-			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(src, resp.Resp.Request.URL.String(), "blockquote", "cite", resp))
-		}
-	})
-	return
-}
-
-// bodyFrameSrcTagParser parses frame src tag from response
-func bodyFrameSrcTagParser(resp *navigation.Response) (navigationRequests []*navigation.Request) {
-	resp.Reader.Find("frame[src]").Each(func(i int, item *goquery.Selection) {
-		src, ok := item.Attr("src")
-		if ok && src != "" {
-			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(src, resp.Resp.Request.URL.String(), "frame", "src", resp))
+			navigationRequests = append(navigationRequests, navigation.NewNavigationRequestURLFromResponse(src, responseSourceURL(resp), "blockquote", "cite", resp))
 		}
 	})
 	return
@@ -632,38 +642,52 @@ func bodyMetaContentTagParser(resp *navigation.Response) (navigationRequests []*
 }
 
 func bodyHtmxAttrParser(resp *navigation.Response) (navigationRequests []*navigation.Request) {
+	srcURL := responseSourceURL(resp)
 	// exclude hx-delete
 	resp.Reader.Find("[hx-get],[hx-post],[hx-put],[hx-patch]").Each(func(i int, item *goquery.Selection) {
-		req := &navigation.Request{
-			RootHostname: resp.RootHostname,
-			Depth:        resp.Depth,
-			Source:       resp.Resp.Request.URL.String(),
-			Tag:          "htmx",
-		}
-
 		if hxGet, ok := item.Attr("hx-get"); ok && hxGet != "" {
-			req.Method = http.MethodGet
-			req.URL = resp.AbsoluteURL(hxGet)
-			req.Attribute = "hx-get"
-			navigationRequests = append(navigationRequests, req)
+			navigationRequests = append(navigationRequests, &navigation.Request{
+				Method:       http.MethodGet,
+				URL:          resp.AbsoluteURL(hxGet),
+				Depth:        resp.Depth,
+				RootHostname: resp.RootHostname,
+				Source:       srcURL,
+				Tag:          "htmx",
+				Attribute:    "hx-get",
+			})
 		}
-		if hxPost, ok := item.Attr(("hx-post")); ok && hxPost != "" {
-			req.Method = http.MethodPost
-			req.URL = resp.AbsoluteURL(hxPost)
-			req.Attribute = "hx-post"
-			navigationRequests = append(navigationRequests, req)
+		if hxPost, ok := item.Attr("hx-post"); ok && hxPost != "" {
+			navigationRequests = append(navigationRequests, &navigation.Request{
+				Method:       http.MethodPost,
+				URL:          resp.AbsoluteURL(hxPost),
+				Depth:        resp.Depth,
+				RootHostname: resp.RootHostname,
+				Source:       srcURL,
+				Tag:          "htmx",
+				Attribute:    "hx-post",
+			})
 		}
-		if hxPut, ok := item.Attr(("hx-put")); ok && hxPut != "" {
-			req.Method = http.MethodPut
-			req.URL = resp.AbsoluteURL(hxPut)
-			req.Attribute = "hx-put"
-			navigationRequests = append(navigationRequests, req)
+		if hxPut, ok := item.Attr("hx-put"); ok && hxPut != "" {
+			navigationRequests = append(navigationRequests, &navigation.Request{
+				Method:       http.MethodPut,
+				URL:          resp.AbsoluteURL(hxPut),
+				Depth:        resp.Depth,
+				RootHostname: resp.RootHostname,
+				Source:       srcURL,
+				Tag:          "htmx",
+				Attribute:    "hx-put",
+			})
 		}
-		if hxPatch, ok := item.Attr(("hx-patch")); ok && hxPatch != "" {
-			req.Method = http.MethodPatch
-			req.URL = resp.AbsoluteURL(hxPatch)
-			req.Attribute = "hx-patch"
-			navigationRequests = append(navigationRequests, req)
+		if hxPatch, ok := item.Attr("hx-patch"); ok && hxPatch != "" {
+			navigationRequests = append(navigationRequests, &navigation.Request{
+				Method:       http.MethodPatch,
+				URL:          resp.AbsoluteURL(hxPatch),
+				Depth:        resp.Depth,
+				RootHostname: resp.RootHostname,
+				Source:       srcURL,
+				Tag:          "htmx",
+				Attribute:    "hx-patch",
+			})
 		}
 	})
 	return
@@ -728,7 +752,7 @@ func customFieldRegexParser(resp *navigation.Response) (navigationRequests []*na
 			}
 
 			// read header
-			if v.Part == output.Header.ToString() || v.Part == output.Response.ToString() {
+			if resp.Resp != nil && resp.Resp.Header != nil && (v.Part == output.Header.ToString() || v.Part == output.Response.ToString()) {
 				for key, v := range resp.Resp.Header {
 					header := key + ": " + strings.Join(v, "\n")
 					headerMatches := re.FindAllStringSubmatch(header, -1)
@@ -751,7 +775,7 @@ func customFieldRegexParser(resp *navigation.Response) (navigationRequests []*na
 	if len(customField) != 0 {
 		navigationRequests = append(navigationRequests, &navigation.Request{
 			Method:       "GET",
-			URL:          resp.Resp.Request.URL.String(),
+			URL:          responseSourceURL(resp),
 			Depth:        resp.Depth,
 			CustomFields: customField,
 		})

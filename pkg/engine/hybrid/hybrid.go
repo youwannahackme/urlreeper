@@ -3,6 +3,8 @@ package hybrid
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -235,7 +237,7 @@ func (c *Crawler) Do(crawlSession *common.CrawlSession, doRequest common.DoReque
 			c.RecordSuccess(crawlSession.Hostname)
 		}
 
-		if inScope {
+		if inScope || req.SkipValidation || c.Options.Options.DisplayOutScope {
 			c.Output(req, resp, err)
 		}
 
@@ -266,7 +268,7 @@ func (c *Crawler) Do(crawlSession *common.CrawlSession, doRequest common.DoReque
 // buildChromeLauncher builds a new chrome launcher instance
 func buildChromeLauncher(options *types.CrawlerOptions, dataStore string) (*launcher.Launcher, error) {
 	chromeLauncher := launcher.New().
-		Leakless(true).
+		Leakless(runtime.GOOS != "windows").
 		Set("disable-gpu", "true").
 		Set("ignore-certificate-errors", "true").
 		Set("ignore-certificate-errors", "1").
@@ -278,19 +280,18 @@ func buildChromeLauncher(options *types.CrawlerOptions, dataStore string) (*laun
 		Delete("use-mock-keychain").
 		UserDataDir(dataStore)
 
-	if options.Options.UseInstalledChrome {
-		if options.Options.SystemChromePath != "" {
-			chromeLauncher.Bin(options.Options.SystemChromePath)
-		} else {
-			if chromePath, hasChrome := launcher.LookPath(); hasChrome {
-				chromeLauncher.Bin(chromePath)
-			} else {
-				return nil, errkit.New("hybrid: the chrome browser is not installed")
-			}
-		}
-	}
 	if options.Options.SystemChromePath != "" {
 		chromeLauncher.Bin(options.Options.SystemChromePath)
+	} else if chromePath, hasChrome := launcher.LookPath(); hasChrome {
+		chromeLauncher.Bin(chromePath)
+	} else if p, err := exec.LookPath("chromium"); err == nil {
+		chromeLauncher.Bin(p)
+	} else if p, err := exec.LookPath("chromium-browser"); err == nil {
+		chromeLauncher.Bin(p)
+	} else if p, err := exec.LookPath("google-chrome"); err == nil {
+		chromeLauncher.Bin(p)
+	} else if options.Options.UseInstalledChrome {
+		return nil, errkit.New("hybrid: the chrome browser is not installed")
 	}
 
 	if options.Options.ShowBrowser {
@@ -303,7 +304,7 @@ func buildChromeLauncher(options *types.CrawlerOptions, dataStore string) (*laun
 		chromeLauncher.Set("no-sandbox", "true")
 	}
 
-	if options.Options.Proxy != "" && options.Options.Headless {
+	if options.Options.Proxy != "" {
 		proxyURL, err := urlutil.Parse(options.Options.Proxy)
 		if err != nil {
 			return nil, err

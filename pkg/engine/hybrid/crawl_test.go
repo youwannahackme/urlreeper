@@ -19,7 +19,7 @@ func setupBrowserTest(t *testing.T) (*rod.Browser, *rod.Page) {
 		t.Skip("chrome/chromium not found, skipping browser test")
 	}
 
-	u, err := launcher.New().Leakless(true).Launch()
+	u, err := launcher.New().Bin(path).Headless(true).Leakless(false).Launch()
 	if err != nil {
 		t.Skipf("could not launch browser: %v", err)
 	}

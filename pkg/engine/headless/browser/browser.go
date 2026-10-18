@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"os/exec"
 	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -118,7 +120,7 @@ func (l *Launcher) launchBrowserWithDataDir(userDataDir string) (*rod.Browser, e
 	} else {
 		// Launch a new Chrome instance
 		chromeLauncher := launcher.New().
-			Leakless(true).
+			Leakless(runtime.GOOS != "windows").
 			Set("disable-gpu", "true").
 			Set("ignore-certificate-errors", "true").
 			Set("disable-crash-reporter", "true").
@@ -152,7 +154,7 @@ func (l *Launcher) launchBrowserWithDataDir(userDataDir string) (*rod.Browser, e
 			chromeLauncher = chromeLauncher.Proxy(l.opts.Proxy)
 		}
 
-		if l.opts.NoSandbox {
+		if l.opts.NoSandbox || os.Geteuid() == 0 {
 			chromeLauncher = chromeLauncher.NoSandbox(true)
 		}
 
@@ -162,6 +164,14 @@ func (l *Launcher) launchBrowserWithDataDir(userDataDir string) (*rod.Browser, e
 
 		if l.opts.ChromiumPath != "" {
 			chromeLauncher = chromeLauncher.Bin(l.opts.ChromiumPath)
+		} else if chromePath, has := launcher.LookPath(); has {
+			chromeLauncher = chromeLauncher.Bin(chromePath)
+		} else if p, err := exec.LookPath("chromium"); err == nil {
+			chromeLauncher = chromeLauncher.Bin(p)
+		} else if p, err := exec.LookPath("chromium-browser"); err == nil {
+			chromeLauncher = chromeLauncher.Bin(p)
+		} else if p, err := exec.LookPath("google-chrome"); err == nil {
+			chromeLauncher = chromeLauncher.Bin(p)
 		}
 
 		if userDataDir != "" {

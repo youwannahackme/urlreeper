@@ -129,7 +129,10 @@ func (s *Shared) Enqueue(queue *queue.Queue, navigationRequests ...*navigation.R
 		// them for visiting. Uniqueness is intentionally not consumed here so that
 		// URLs can still be visited if later discovered at a valid depth via another path.
 		if nr.Depth > s.Options.Options.MaxDepth {
-			s.Output(nr, nil, ErrMaxDepthReached)
+			inScope := s.ValidateScope(nr.URL, nr.RootHostname)
+			if inScope || s.Options.Options.DisplayOutScope {
+				s.Output(nr, nil, ErrMaxDepthReached)
+			}
 			continue
 		}
 
@@ -495,7 +498,7 @@ func (s *Shared) Do(crawlSession *CrawlSession, doRequest DoRequestFunc) error {
 				s.RecordSuccess(crawlSession.Hostname)
 			}
 
-			if inScope {
+			if inScope || req.SkipValidation || s.Options.Options.DisplayOutScope {
 				s.Output(req, resp, err)
 			}
 

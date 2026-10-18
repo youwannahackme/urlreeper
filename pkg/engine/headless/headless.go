@@ -120,7 +120,12 @@ func (h *Headless) Crawl(URL string) error {
 		UserDataDir:       h.options.Options.ChromeDataDir,
 		Proxy:             h.options.Options.Proxy,
 		MaxBrowsers:       1,
-		PageMaxTimeout:    30 * time.Second,
+		PageMaxTimeout: func() time.Duration {
+			if h.options.Options.Timeout > 0 {
+				return time.Duration(h.options.Options.Timeout) * time.Second
+			}
+			return 15 * time.Second
+		}(),
 		ScopeValidator:    scopeValidator,
 		AutomaticFormFill: h.options.Options.AutomaticFormFill,
 		PageLoadStrategy:  h.options.Options.PageLoadStrategy,
@@ -130,7 +135,7 @@ func (h *Headless) Crawl(URL string) error {
 			if rr == nil || rr.Request == nil {
 				return
 			}
-			if scopeValidator != nil && !scopeValidator(rr.Request.URL) {
+			if scopeValidator != nil && !scopeValidator(rr.Request.URL) && !h.options.Options.DisplayOutScope {
 				return
 			}
 
@@ -145,6 +150,12 @@ func (h *Headless) Crawl(URL string) error {
 			// browser happened to fetch more than once.
 			navigationRequests := h.performAdditionalAnalysis(rr)
 			for _, req := range navigationRequests {
+				if req == nil || req.Request == nil {
+					continue
+				}
+				if scopeValidator != nil && !scopeValidator(req.Request.URL) && !h.options.Options.DisplayOutScope {
+					continue
+				}
 				if err := h.options.OutputWriter.Write(req); err != nil {
 					h.logger.Debug("failed to write navigation result",
 						slog.String("url", func() string {
@@ -242,12 +253,20 @@ func (h *Headless) isUniqueURL(rawURL string) bool {
 }
 
 func (h *Headless) performAdditionalAnalysis(rr *output.Result) []*output.Result {
-	responseParser := parser.NewResponseParser()
+	if rr == nil || rr.Response == nil {
+		return nil
+	}
+	var responseParser *parser.Parser
+	if h.options != nil && h.options.Parser != nil {
+		responseParser = h.options.Parser
+	} else {
+		responseParser = parser.NewResponseParser()
+	}
 	newNavigations := responseParser.ParseResponse(rr.Response)
 
 	navigationRequests := make([]*output.Result, 0)
 	for _, resp := range newNavigations {
-		if !h.isUniqueURL(resp.URL) {
+		if resp == nil || !h.isUniqueURL(resp.URL) {
 			continue
 		}
 		navigationRequests = append(navigationRequests, &output.Result{

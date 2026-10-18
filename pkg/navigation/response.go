@@ -2,6 +2,7 @@ package navigation
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -49,13 +50,29 @@ func (n Response) AbsoluteURL(path string) string {
 		return ""
 	}
 
-	absURL, err := n.Resp.Request.URL.Parse(path)
+	var baseURL *url.URL
+	if n.Resp != nil && n.Resp.Request != nil && n.Resp.Request.URL != nil {
+		baseURL = n.Resp.Request.URL
+	} else if n.Reader != nil && n.Reader.Url != nil {
+		baseURL = n.Reader.Url
+	}
+
+	if baseURL == nil {
+		parsed, err := url.Parse(path)
+		if err == nil && parsed.IsAbs() {
+			parsed.Fragment = ""
+			return parsed.String()
+		}
+		return ""
+	}
+
+	absURL, err := baseURL.Parse(path)
 	if err != nil {
 		return ""
 	}
 	absURL.Fragment = ""
-	if absURL.Scheme == "//" {
-		absURL.Scheme = n.Resp.Request.URL.Scheme
+	if absURL.Scheme == "" && baseURL.Scheme != "" {
+		absURL.Scheme = baseURL.Scheme
 	}
 	final := absURL.String()
 	return final

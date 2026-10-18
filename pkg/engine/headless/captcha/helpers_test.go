@@ -16,7 +16,7 @@ func setupBrowser(t *testing.T) *rod.Browser {
 	if !found {
 		t.Skip("chromium not found, skipping browser tests")
 	}
-	u := launcher.New().Bin(path).Headless(true).Leakless(true).MustLaunch()
+	u := launcher.New().Bin(path).Headless(true).Leakless(false).MustLaunch()
 	browser := rod.New().ControlURL(u).MustConnect()
 	t.Cleanup(func() { browser.MustClose() })
 	return browser

@@ -362,10 +362,13 @@ func (c *Crawler) navigateRequest(s *common.CrawlSession, request *navigation.Re
 	}
 
 	if response == nil || response.Resp == nil {
-		// err is guaranteed to be nil, due to previous checks.
 		return nil, errors.New("hybrid: response is nil")
 	}
-	response.Resp.Request.URL = parsed.URL
+	if response.Resp.Request == nil {
+		response.Resp.Request = &http.Request{URL: parsed.URL}
+	} else {
+		response.Resp.Request.URL = parsed.URL
+	}
 
 	// Create a copy of interpolated shadow DOM elements and parse them separately
 	if domResult != nil && domResult.Root != nil {
@@ -383,16 +386,15 @@ func (c *Crawler) navigateRequest(s *common.CrawlSession, request *navigation.Re
 	}
 
 	response.Body = body
+	response.Reader, err = goquery.NewDocumentFromReader(strings.NewReader(response.Body))
+	if err != nil {
+		return nil, errkit.Wrap(err, "hybrid: could not parse html")
+	}
 	if response.Reader != nil {
 		response.Reader.Url, _ = url.Parse(request.URL)
 		if c.Options.Options.FormExtraction {
 			response.Forms = append(response.Forms, utils.ParseFormFields(response.Reader)...)
 		}
-	}
-
-	response.Reader, err = goquery.NewDocumentFromReader(strings.NewReader(response.Body))
-	if err != nil {
-		return nil, errkit.Wrap(err, "hybrid: could not parse html")
 	}
 
 	response.XhrRequests = xhrRequests

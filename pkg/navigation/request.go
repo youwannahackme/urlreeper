@@ -26,18 +26,17 @@ type Request struct {
 
 // RequestURL returns the request URL for the navigation
 func (n *Request) RequestURL() string {
-	switch n.Method {
-	case "GET":
-		return n.URL
-	case "POST":
+	if n == nil {
+		return ""
+	}
+	if n.Method == "POST" && n.Body != "" {
 		builder := &strings.Builder{}
 		builder.WriteString(n.URL)
 		builder.WriteString(":")
 		builder.WriteString(n.Body)
-		builtURL := builder.String()
-		return builtURL
+		return builder.String()
 	}
-	return ""
+	return n.URL
 }
 
 // newNavigationRequestURL generates a navigation request from a relative URL

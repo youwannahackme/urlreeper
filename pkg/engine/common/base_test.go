@@ -6,13 +6,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/youwannahackme/urlreeper/pkg/navigation"
 	"github.com/youwannahackme/urlreeper/pkg/output"
 	"github.com/youwannahackme/urlreeper/pkg/types"
 	"github.com/youwannahackme/urlreeper/pkg/utils/extensions"
 	"github.com/youwannahackme/urlreeper/pkg/utils/queue"
 	"github.com/youwannahackme/urlreeper/pkg/utils/scope"
-	"github.com/stretchr/testify/require"
 )
 
 type mockFilter struct {
@@ -23,9 +23,9 @@ func newMockFilter() *mockFilter {
 	return &mockFilter{seen: make(map[string]bool)}
 }
 
-func (f *mockFilter) Close()                          {}
-func (f *mockFilter) UniqueContent(_ []byte) bool     { return true }
-func (f *mockFilter) IsCycle(_ string) bool            { return false }
+func (f *mockFilter) Close()                      {}
+func (f *mockFilter) UniqueContent(_ []byte) bool { return true }
+func (f *mockFilter) IsCycle(_ string) bool       { return false }
 func (f *mockFilter) UniqueURL(url string) bool {
 	if f.seen[url] {
 		return false
@@ -155,6 +155,41 @@ func TestEnqueueMaxDepthOutputsDiscoveredURLs(t *testing.T) {
 		require.NotNil(t, item, "same URL at valid depth should still be enqueued after being discovered at max depth")
 		req := item.(*navigation.Request)
 		require.Equal(t, "https://example.com/page", req.URL)
+	})
+
+	t.Run("out of scope URLs beyond max depth are not output by default", func(t *testing.T) {
+		shared, writer := newTestShared(1)
+		sm, _ := scope.NewManager(nil, nil, "rdn", false)
+		shared.Options.ScopeManager = sm
+		q, _ := queue.New("depth-first", 10)
+
+		shared.Enqueue(q, &navigation.Request{
+			Method:       http.MethodGet,
+			URL:          "https://otherdomain.com/page",
+			RootHostname: "example.com",
+			Depth:        2,
+		})
+
+		require.Equal(t, 0, len(writer.results), "out of scope URL beyond max depth should not be output")
+		require.Equal(t, 0, q.Len(), "out of scope URL beyond max depth should not be enqueued")
+	})
+
+	t.Run("out of scope URLs beyond max depth are output when DisplayOutScope is true", func(t *testing.T) {
+		shared, writer := newTestShared(1, func(o *types.Options) { o.DisplayOutScope = true })
+		sm, _ := scope.NewManager(nil, nil, "rdn", false)
+		shared.Options.ScopeManager = sm
+		q, _ := queue.New("depth-first", 10)
+
+		shared.Enqueue(q, &navigation.Request{
+			Method:       http.MethodGet,
+			URL:          "https://otherdomain.com/page",
+			RootHostname: "example.com",
+			Depth:        2,
+		})
+
+		require.Equal(t, 1, len(writer.results), "out of scope URL beyond max depth should be output when DisplayOutScope is true")
+		require.Equal(t, "https://otherdomain.com/page", writer.results[0].Request.URL)
+		require.Equal(t, 0, q.Len(), "out of scope URL beyond max depth should not be enqueued")
 	})
 }
 

@@ -3,6 +3,7 @@ package captcha
 import (
 	"testing"
 
+	"github.com/go-rod/rod/lib/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,9 +39,16 @@ func TestIntegration_DetectRealCaptchaPages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			page := browser.MustPage(tt.url)
-			defer page.MustClose()
-			page.MustWaitLoad()
+			page, err := browser.Page(proto.TargetCreateTarget{URL: tt.url})
+			if err != nil {
+				t.Skipf("network navigation to %s failed: %v", tt.url, err)
+				return
+			}
+			defer func() { _ = page.Close() }()
+			if err := page.WaitLoad(); err != nil {
+				t.Skipf("page load for %s failed: %v", tt.url, err)
+				return
+			}
 
 			info, err := Identify(page)
 			require.NoError(t, err)
