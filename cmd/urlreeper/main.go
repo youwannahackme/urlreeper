@@ -144,7 +144,8 @@ func readFlags() (*goflags.FlagSet, error) {
 pipelines offering both headless and non-headless crawling.`)
 
 	flagSet.CreateGroup("input", "Input",
-		flagSet.StringSliceVarP(&options.URLs, "list", "u", nil, "target url / list to crawl", goflags.FileCommaSeparatedStringSliceOptions),
+		flagSet.StringSliceVarP(&options.URLs, "url", "u", nil, "target url / list to crawl", goflags.FileCommaSeparatedStringSliceOptions),
+		flagSet.StringSliceVarP(&options.URLs, "list", "l", nil, "target list to crawl", goflags.FileCommaSeparatedStringSliceOptions),
 		flagSet.BoolVarP(&options.Passive, "passive", "ps", false, "enable passive URL discovery from web archives (Wayback Machine, AlienVault OTX)"),
 		flagSet.StringVar(&options.Resume, "resume", "", "resume scan using resume.cfg"),
 		flagSet.StringSliceVarP(&options.Exclude, "exclude", "e", nil, "exclude host matching specified filter ('cdn', 'private-ips', cidr, ip, regex)", goflags.CommaSeparatedStringSliceOptions),
@@ -168,7 +169,7 @@ pipelines offering both headless and non-headless crawling.`)
 		flagSet.BoolVarP(&options.AutomaticFormFill, "automatic-form-fill", "aff", false, "enable automatic form filling (experimental)"),
 		flagSet.BoolVarP(&options.FormExtraction, "form-extraction", "fx", false, "extract form, input, textarea & select elements in jsonl output"),
 		flagSet.IntVar(&options.Retries, "retry", 1, "number of times to retry the request"),
-		flagSet.StringVar(&options.Proxy, "proxy", "", "http/socks5 proxy to use"),
+		flagSet.StringVarP(&options.Proxy, "proxy", "x", "", "http/socks5 proxy to use"),
 		flagSet.BoolVarP(&options.TechDetect, "tech-detect", "td", false, "enable technology detection"),
 		flagSet.StringSliceVarP(&options.CustomHeaders, "headers", "H", nil, "custom header/cookie to include in all http request in header:value format (file)", goflags.FileStringSliceOptions),
 		flagSet.StringVar(&cfgFile, "config", "", "path to the urlreeper configuration file"),
@@ -264,7 +265,8 @@ pipelines offering both headless and non-headless crawling.`)
 		flagSet.BoolVarP(&options.OmitBody, "omit-body", "ob", false, "omit response body from jsonl output"),
 		flagSet.BoolVarP(&options.ListOutputFields, "list-output-fields", "lof", false, "list of fields to output in jsonl format"),
 		flagSet.StringSliceVarP(&options.ExcludeOutputFields, "exclude-output-fields", "eof", nil, "exclude fields from jsonl output", goflags.CommaSeparatedStringSliceOptions),
-		flagSet.BoolVarP(&options.JSON, "jsonl", "j", false, "write output in jsonl format"),
+		flagSet.BoolVarP(&options.JSON, "json", "j", false, "write output in jsonl format"),
+		flagSet.BoolVar(&options.JSON, "jsonl", false, "write output in jsonl format"),
 		flagSet.BoolVarP(&options.NoColors, "no-color", "nc", false, "disable output content coloring (ANSI escape codes)"),
 		flagSet.BoolVar(&options.Silent, "silent", false, "display output only"),
 		flagSet.BoolVarP(&options.Verbose, "verbose", "v", false, "display verbose output"),
@@ -274,6 +276,14 @@ pipelines offering both headless and non-headless crawling.`)
 
 	if err := flagSet.Parse(); err != nil {
 		return nil, errkit.Wrap(err, "could not parse flags")
+	}
+
+	if len(options.URLs) == 0 && len(os.Args) > 1 {
+		for _, arg := range os.Args[1:] {
+			if !strings.HasPrefix(arg, "-") && (strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://")) {
+				options.URLs = append(options.URLs, arg)
+			}
+		}
 	}
 
 	if cfgFile != "" {
